@@ -85,6 +85,9 @@ model {
 			mu[i] = sr;
 		} else {
 			mu[i] = (x[i] - threshold) * slope[c];
+            if (mu[i] < 0) {
+                mu[i] = 0;
+            }
 		}
 	}
 
