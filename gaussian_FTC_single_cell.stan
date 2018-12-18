@@ -1,57 +1,57 @@
 data {
     int<lower=1> n;
-    vector[n] freq;
+    
+    real freq[n];
     int<lower=0> spike_count[n];
-    vector[n] sample_time;
-    vector[n] pupil;
-    int<lower=0> spont_count[2];
-    real<lower=0> spont_time[2];
+    real<lower=0> sample_time[n];
+    int<lower=0, upper=1> pupil[n];
+    
+    real<lower=0> sr;
+    real<lower=0> sr_lg;
 }
+
 parameters {
-    real<lower=0> bf;
-    real bf_pupil_delta;
-    
+    real bf;
     real<lower=0> bw;
-    real bw_pupil_delta;
+    real<lower=0> gain;
     
-    real gain;
-    real gain_pupil_delta;
-    
-    real<lower=0> offset;
-    real offset_pupil_delta;
+    real bf_delta;
+    real<lower=0> bw_ratio;
+    real<lower=0> gain_ratio;
 }
 
 model {
     vector[n] lambda;
-    vector[2] lambda_sr;
     
+    real gauss;
     real bf_i;
     real bw_i;
     real gain_i;
-    real offset_i;
+    real sr_i;
     
     bf ~ normal(7.25, 2.0);
-    bf_pupil_delta ~ normal(0, 1);
-    bw ~ normal(1, 1)T[0, ];
-    bw_pupil_delta ~ normal(0, 0.5);
-    offset ~ gamma(0.65, 0.07);
-    offset_pupil_delta ~ normal(0, 2);
-    gain ~ normal(35, 35)T[-offset, ];
-    gain_pupil_delta ~ normal(0, 10);
+    bw ~ gamma(1, 1);
+    gain ~ normal(35, 35)T[0, ];
+    
+    bf_delta ~ normal(0, 1);
+    bw_ratio ~ normal(1, 0.5)T[0, ];
+    gain_ratio ~ normal(1, 10);
     
     for (i in 1:n) {
-        bf_i = bf + bf_pupil_delta * pupil[i];
-        bw_i = bw + bw_pupil_delta * pupil[i];
-        offset_i = offset + offset_pupil_delta * pupil[i];
-        gain_i = gain + gain_pupil_delta * pupil[i];
-        
-        lambda[i] = exp(-0.5*square((freq[i]-bf_i)/bw_i));
-        lambda[i] = offset_i + gain_i * lambda[i];
-        lambda[i] = lambda[i] * sample_time[i];
+        if (pupil[i] == 0) {
+            sr_i = sr;
+            bf_i = bf;
+            bw_i = bw;
+            gain_i = gain;
+        } else {
+            sr_i = sr_lg;
+            bf_i = bf + bf_delta;
+            bw_i = bw * bw_ratio;
+            gain_i = gain * gain_ratio;
+        }
+        gauss = exp(-0.5*square((freq[i]-bf_i)/bw_i));
+        lambda[i] = sr_i * gain_i * gauss * sample_time[i];
     }
     
-    lambda_sr[1] = offset * spont_time[1];
-    lambda_sr[2] = (offset + offset_pupil_delta) * spont_time[2];
     spike_count ~ poisson(lambda);
-    spont_count ~ poisson(lambda_sr);
 }
