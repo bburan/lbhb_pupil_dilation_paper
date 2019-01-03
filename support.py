@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 import pandas as pd
 import pystan
+import seaborn as sns
 
 
 def CachedStanModel(model_file, model_name=None, **kwargs):
@@ -70,11 +71,14 @@ def load_rates():
 
     sr = sr.reset_index().join(sig_cells, on=sig_cells.index.names).set_index(sr.index.names)
     sr['significant'] = sr['significant'].fillna(False)
+    
+    significant = rlf.reset_index().groupby(['cellid'])['significant'].first()
 
     return {
         'ftc': ftc.rename(columns=renamer),
         'rlf': rlf.rename(columns=renamer),
         'sr': sr.rename(columns=renamer),
+        'significant': significant,
     }
 
 
@@ -88,3 +92,50 @@ def load_ftc():
 
 def load_rlf():
     return load_rates()['rlf']
+
+
+def get_metric(summary, metric, index=None, cells=None):
+    x = summary[metric].to_series()
+    if x.index.nlevels == 2:
+        x = x.unstack('metric')
+    if cells is not None:
+        index = pd.Index(cells, name='cellid')
+    if index is not None:
+        x.index = index
+    return x
+
+
+def get_color(row, lb_label, ub_label):
+    if row['gelman-rubin statistic'] > 1.1:
+        return 'red'
+    if (row[lb_label] > 0) or (row[ub_label] < 0):
+        return 'green'
+    return 'gray'
+
+
+def forest_plot(ax, cell_metric, pop_metric, measure):
+    cell_metric = cell_metric.sort_values('mean')
+    ci_label = ['hpd 5.00%', 'hpd 95.00%']
+    
+    color = get_color(pop_metric, *ci_label)
+    ax.axvspan(*pop_metric[ci_label], facecolor=color, alpha=0.5)
+    ax.axvline(pop_metric['mean'], color=color)
+    n_sig = 0
+    for i, (cell_index, row) in enumerate(cell_metric.iterrows()):
+        lw = 0.5
+        color = get_color(row, *ci_label)
+        if color == 'green':
+            n_sig += 1
+        ax.plot(row[ci_label], [i, i], '-', color=color, lw=lw)
+        ax.plot(row[['mean']], [i], 'o', color=color)
+        
+    title = f'Change in {measure} (lg. re sm. pupil)'
+    n_sig = f'{n_sig} sig. out of {len(cell_metric)}'
+    pop_stat = f'Mean change {pop_metric["mean"]:.2f} (90% CI {pop_metric[ci_label[0]]:.2f} to {pop_metric[ci_label[1]]:.2f})'
+    ax.set_xlabel(f'{title}\n{n_sig}\n{pop_stat}')
+    sns.despine(ax=ax, top=True, left=True, right=True, bottom=False)
+    ax.yaxis.set_ticks_position('none')
+    ax.yaxis.set_ticks([])
+    ax.grid()
+    return ax
+
