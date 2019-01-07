@@ -71,19 +71,19 @@ def load_rates():
 
     sr = sr.reset_index().join(sig_cells, on=sig_cells.index.names).set_index(sr.index.names)
     sr['significant'] = sr['significant'].fillna(False)
-    
+
     significant = rlf.reset_index().groupby(['cellid'])['significant'].first()
-    
+
     ftc = ftc.rename(columns=renamer)
     rlf = rlf.rename(columns=renamer)
     sr = sr.rename(columns=renamer)
 
     m = sr['time'] != 0
     sr = sr.loc[m]
-    
+
     m = rlf['time'] != 0
     rlf = rlf.loc[m]
-    
+
     m = ftc['time'] != 0
     ftc = ftc.loc[m]
 
@@ -129,7 +129,7 @@ def get_color(row, lb_label, ub_label):
 def forest_plot(ax, cell_metric, pop_metric, measure):
     cell_metric = cell_metric.sort_values('mean')
     ci_label = ['hpd 5.00%', 'hpd 95.00%']
-    
+
     color = get_color(pop_metric, *ci_label)
     ax.axvspan(*pop_metric[ci_label], facecolor=color, alpha=0.5)
     ax.axvline(pop_metric['mean'], color=color)
@@ -141,7 +141,7 @@ def forest_plot(ax, cell_metric, pop_metric, measure):
             n_sig += 1
         ax.plot(row[ci_label], [i, i], '-', color=color, lw=lw)
         ax.plot(row[['mean']], [i], 'o', color=color)
-        
+
     title = f'Change in {measure} (lg. re sm. pupil)'
     n_sig = f'{n_sig} sig. out of {len(cell_metric)}'
     pop_stat = f'Mean change {pop_metric["mean"]:.2f} (90% CI {pop_metric[ci_label[0]]:.2f} to {pop_metric[ci_label[1]]:.2f})'
@@ -151,4 +151,3 @@ def forest_plot(ax, cell_metric, pop_metric, measure):
     ax.yaxis.set_ticks([])
     ax.grid()
     return ax
-
