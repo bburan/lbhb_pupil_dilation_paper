@@ -73,11 +73,24 @@ def load_rates():
     sr['significant'] = sr['significant'].fillna(False)
     
     significant = rlf.reset_index().groupby(['cellid'])['significant'].first()
+    
+    ftc = ftc.rename(columns=renamer)
+    rlf = rlf.rename(columns=renamer)
+    sr = sr.rename(columns=renamer)
+
+    m = sr['time'] != 0
+    sr = sr.loc[m]
+    
+    m = rlf['time'] != 0
+    rlf = rlf.loc[m]
+    
+    m = ftc['time'] != 0
+    ftc = ftc.loc[m]
 
     return {
-        'ftc': ftc.rename(columns=renamer),
-        'rlf': rlf.rename(columns=renamer),
-        'sr': sr.rename(columns=renamer),
+        'ftc': ftc,
+        'rlf': rlf,
+        'sr': sr,
         'significant': significant,
     }
 
