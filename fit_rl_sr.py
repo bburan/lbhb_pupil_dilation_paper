@@ -10,10 +10,17 @@ from support import CachedStanModel
 from support import get_metric, forest_plot, load_rates
 
 
-def load_data(exclude_silent=False, significant_only=False):
+def load_data(exclude_silent=False, significant_only=False, n=None):
     rates = load_rates()
     er = rates['rlf']
     sr = rates['sr']
+
+    if n is not None:
+        cells = er.reset_index()['cellid'].unique()
+        lb = cells[0]
+        ub = cells[n]
+        sr = sr.loc[lb:ub]
+        er = er.loc[lb:ub]
 
     if exclude_silent:
         spike_counts = er['count'].groupby(['cellid', 'pupil']).sum()
@@ -41,7 +48,7 @@ def load_data(exclude_silent=False, significant_only=False):
     indices = np.r_[indices, [len(e), -1]]
     data_cell_index = np.array(indices).reshape((-1, 2)) + 1
 
-    return {
+    return cells, {
         'n': len(e),
         'n_cells': len(cells),
         'level': e['level'].values,
@@ -69,13 +76,13 @@ if __name__ == '__main__':
         fit_names.append('significant_only')
     fit_name = '_'.join(fit_names)
 
-    data = load_data(exclude_silent=args.exclude_silent,
-                     significant_only=args.significant_only)
+    cells, data = load_data(exclude_silent=args.exclude_silent,
+                            significant_only=args.significant_only)
     model = CachedStanModel('rl_with_sr.stan')
-    #fit = model.sampling(data, iter=10000, control={'max_treedepth': 15})
-    fit = model.sampling(data, iter=2000)
+    fit = model.sampling(data, iter=10000, control={'max_treedepth': 15})
 
-    with open(f'{fit_name}.pkl', 'wb') as fh:
+    with open(f'fits/{fit_name}.pkl', 'wb') as fh:
+        pickle.dump(cells, fh)
         pickle.dump(model, fh)
         pickle.dump(fit, fh)
 
