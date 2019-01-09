@@ -166,14 +166,24 @@ def load_stan_data(which='rlf', exclude_silent=False, significant_only=False, o=
     }
 
 
-def get_metric(summary, metric, index=None, cells=None):
+def get_metric(summary, metric, index=None, cells=None, sig_ref=0):
     x = summary[metric].to_series()
     if x.index.nlevels == 2:
         x = x.unstack('metric')
+        x['change'] = '='
+        x.loc[x['hpd 5.00%'] > sig_ref, 'change'] = '+'
+        x.loc[x['hpd 95.00%'] < sig_ref, 'change'] = '-'  
+    else:
+        x['change'] = '='
+        if x['hpd 5.00%'] > sig_ref:
+            x['change'] = '+'
+        elif x['hpd 95.00%'] < sig_ref:
+            x['change'] = '-'  
     if cells is not None:
         index = pd.Index(cells, name='cellid')
     if index is not None:
         x.index = index
+        
     return x
 
 
