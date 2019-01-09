@@ -51,8 +51,15 @@ def load_rates():
     cols = ['pupil', 'level', 'rlf_count', 'rlf_time', 'spont_count', 'spont_time']
     rlf = pd.wide_to_long(rlf, cols, 'cellid', 'idx', sep='_').dropna()
     rlf['pupil'] -= 1
-
     rlf = rlf.reset_index().set_index(['cellid', 'pupil', 'level'], verify_integrity=True)[['rlf_count', 'rlf_time']].sort_index()
+
+    # Load RLF wide (freq band)
+    rlf_band = pd.read_csv('rate_level_functions_for_bburan_freq_band.csv')
+    rlf_band.columns = [s.replace(' ', '') for s in rlf_band.columns]
+    cols = ['pupil', 'level', 'rlf_count', 'rlf_time', 'spont_count', 'spont_time', 'freq_band']
+    rlf_band = pd.wide_to_long(rlf_band, cols, 'cellid', 'idx', sep='_').dropna()
+    rlf_band['pupil'] -= 1
+    rlf_band = rlf_band.reset_index().set_index(['cellid', 'pupil', 'level'], verify_integrity=True)[['rlf_count', 'rlf_time']].sort_index()
 
     # Get SR from FTC
     sr = ftc.groupby(['cellid', 'pupil'])[['spont_count', 'spont_time']].first().sort_index()
@@ -71,6 +78,9 @@ def load_rates():
     rlf = rlf.reset_index().join(sig_cells, on=sig_cells.index.names).set_index(rlf.index.names)
     rlf['significant'] = rlf['significant'].fillna(False)
 
+    rlf_band = rlf_band.reset_index().join(sig_cells, on=sig_cells.index.names).set_index(rlf_band.index.names)
+    rlf_band['significant'] = rlf_band['significant'].fillna(False)
+
     sr = sr.reset_index().join(sig_cells, on=sig_cells.index.names).set_index(sr.index.names)
     sr['significant'] = sr['significant'].fillna(False)
 
@@ -78,6 +88,7 @@ def load_rates():
 
     ftc = ftc.rename(columns=renamer)
     rlf = rlf.rename(columns=renamer)
+    rlf_band = rlf_band.rename(columns=renamer)
     sr = sr.rename(columns=renamer)
 
     m = sr['time'] != 0
@@ -86,12 +97,16 @@ def load_rates():
     m = rlf['time'] != 0
     rlf = rlf.loc[m]
 
+    m = rlf_band['time'] != 0
+    rlf_band = rlf_band.loc[m]
+
     m = ftc['time'] != 0
     ftc = ftc.loc[m]
 
     return {
         'ftc': ftc,
         'rlf': rlf,
+        'rlf_band': rlf_band,
         'sr': sr,
         'significant': significant,
     }
@@ -108,12 +123,16 @@ def load_ftc():
 def load_rlf():
     return load_rates()['rlf']
 
+
 def load_stan_data(which='rlf', exclude_silent=False, significant_only=False, o=None, n=None):
     rates = load_rates()
     sr = rates['sr']
 
     if which == 'rlf':
         er = rates['rlf']
+        key = 'level'
+    elif which == 'rlf_band':
+        er = rates['rlf_band']
         key = 'level'
     elif which == 'ftc':
         er = rates['ftc']
@@ -172,18 +191,18 @@ def get_metric(summary, metric, index=None, cells=None, sig_ref=0):
         x = x.unstack('metric')
         x['change'] = '='
         x.loc[x['hpd 5.00%'] > sig_ref, 'change'] = '+'
-        x.loc[x['hpd 95.00%'] < sig_ref, 'change'] = '-'  
+        x.loc[x['hpd 95.00%'] < sig_ref, 'change'] = '-'
     else:
         x['change'] = '='
         if x['hpd 5.00%'] > sig_ref:
             x['change'] = '+'
         elif x['hpd 95.00%'] < sig_ref:
-            x['change'] = '-'  
+            x['change'] = '-'
     if cells is not None:
         index = pd.Index(cells, name='cellid')
     if index is not None:
         x.index = index
-        
+
     return x
 
 
