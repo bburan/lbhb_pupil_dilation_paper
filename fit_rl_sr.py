@@ -1,13 +1,8 @@
-import arviz as az
 import numpy as np
-import seaborn as sns
-from scipy import stats
-import pandas as pd
 import pickle
-import pylab as pl
 
 from support import CachedStanModel
-from support import get_metric, forest_plot, load_rates
+from support import load_rates
 
 
 def load_data(exclude_silent=False, significant_only=False, n=None):
@@ -64,6 +59,9 @@ def load_data(exclude_silent=False, significant_only=False, n=None):
 
 if __name__ == '__main__':
     import argparse
+    import socket
+    hostname = socket.gethostname()
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--exclude-silent', action='store_true')
     parser.add_argument('--significant-only', action='store_true')
@@ -79,9 +77,10 @@ if __name__ == '__main__':
     cells, data = load_data(exclude_silent=args.exclude_silent,
                             significant_only=args.significant_only)
     model = CachedStanModel('rl_with_sr.stan')
-    fit = model.sampling(data, iter=10000, control={'max_treedepth': 15})
+    fit = model.sampling(data, iter=2000, control={'max_treedepth': 15},
+                         sample_file=f'fits/{hostname}-{fit_name}_samples')
 
-    with open(f'fits/{fit_name}.pkl', 'wb') as fh:
+    with open(f'fits/{hostname}-{fit_name}.pkl', 'wb') as fh:
         pickle.dump(cells, fh)
         pickle.dump(model, fh)
         pickle.dump(fit, fh)

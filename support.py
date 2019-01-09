@@ -1,5 +1,6 @@
 from hashlib import md5
 import pickle
+import socket
 
 import numpy as np
 import pandas as pd
@@ -9,13 +10,14 @@ import seaborn as sns
 
 def CachedStanModel(model_file, model_name=None, **kwargs):
     """Use just as you would `stan`"""
+    hostname = socket.gethostname()
     with open(model_file, 'rb') as fh:
         model_code = fh.read().decode('utf8')
     code_hash = md5(model_code.encode('ascii')).hexdigest()
     if model_name is None:
-        cache_fn = 'cached models/cached-model-{}.pkl'.format(code_hash)
+        cache_fn = f'cached_models/{hostname}-cached-model-{code_hash}.pkl'
     else:
-        cache_fn = 'cached models/cached-{}-{}.pkl'.format(model_name, code_hash)
+        cache_fn = f'cached_models/{hostname}-cached-model-{model_name}-{code_hash}.pkl'
     try:
         sm = pickle.load(open(cache_fn, 'rb'))
     except:
@@ -106,6 +108,63 @@ def load_ftc():
 def load_rlf():
     return load_rates()['rlf']
 
+def load_stan_data(which='rlf', exclude_silent=False, significant_only=False, o=None, n=None):
+    rates = load_rates()
+    sr = rates['sr']
+
+    if which == 'rlf':
+        er = rates['rlf']
+        key = 'level'
+    elif which == 'ftc':
+        er = rates['ftc']
+        key = 'frequency'
+
+    if o is not None and n is not None:
+        cells = er.reset_index()['cellid'].unique()
+        lb = cells[o]
+        ub = cells[o+n-1]
+        sr = sr.loc[lb:ub]
+        er = er.loc[lb:ub]
+
+    if exclude_silent:
+        spike_counts = er['count'].groupby(['cellid', 'pupil']).sum()
+        m = spike_counts == 0
+        exclude = spike_counts.loc[m].unstack().index.values.tolist()
+        sr = sr.drop(exclude)
+        er = er.drop(exclude)
+
+    if significant_only:
+        er = er.query('significant')
+        sr = sr.query('significant')
+
+    e = er.reset_index()
+    s = sr.reset_index()
+
+    cells = e['cellid'].unique()
+    cell_map = {c: i+1 for i, c in enumerate(cells)}
+    e['cell_index'] = e['cellid'].apply(cell_map.get).values
+    s['cell_index'] = s['cellid'].map(cell_map.get)
+    s = s.set_index(['cell_index', 'pupil']) \
+        .sort_index()[['count', 'time']].unstack()
+
+    _, indices = np.unique(e[['cell_index', 'pupil']].values.tolist(), \
+                           axis=0, return_index=True)
+    indices = np.r_[indices, [len(e), -1]]
+    data_cell_index = np.array(indices).reshape((-1, 2)) + 1
+
+    return cells, {
+        'n': len(e),
+        'n_cells': len(cells),
+        key: e[key].values,
+        'time': e['time'].values,
+        'count': e['count'].values.astype('i'),
+        'sr_count': s['count'][0].values.astype('i'),
+        'sr_count_pupil': s['count'][1].values.astype('i'),
+        'sr_time': s['time'][0].values,
+        'sr_time_pupil': s['time'][1].values,
+        'data_cell_index': data_cell_index,
+    }
+
 
 def get_metric(summary, metric, index=None, cells=None):
     x = summary[metric].to_series()
@@ -118,25 +177,28 @@ def get_metric(summary, metric, index=None, cells=None):
     return x
 
 
-def get_color(row, lb_label, ub_label):
+def get_color(row, lb_label, ub_label, ref=0):
     if row['gelman-rubin statistic'] > 1.1:
         return 'red'
-    if (row[lb_label] > 0) or (row[ub_label] < 0):
+    if (row[lb_label] > ref) or (row[ub_label] < ref):
         return 'green'
     return 'gray'
 
 
-def forest_plot(ax, cell_metric, pop_metric, measure):
+def forest_plot(ax, cell_metric, pop_metric, measure, ci=90, ref=0):
     cell_metric = cell_metric.sort_values('mean')
-    ci_label = ['hpd 5.00%', 'hpd 95.00%']
+    if ci == 90:
+        ci_label = ['hpd 5.00%', 'hpd 95.00%']
+    elif ci == 95:
+        ci_label = ['hpd 2.50%', 'hpd 97.50%']
 
-    color = get_color(pop_metric, *ci_label)
+    color = get_color(pop_metric, *ci_label, ref=ref)
     ax.axvspan(*pop_metric[ci_label], facecolor=color, alpha=0.5)
     ax.axvline(pop_metric['mean'], color=color)
     n_sig = 0
     for i, (cell_index, row) in enumerate(cell_metric.iterrows()):
         lw = 0.5
-        color = get_color(row, *ci_label)
+        color = get_color(row, *ci_label, ref=ref)
         if color == 'green':
             n_sig += 1
         ax.plot(row[ci_label], [i, i], '-', color=color, lw=lw)

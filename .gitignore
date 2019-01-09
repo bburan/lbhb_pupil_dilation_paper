@@ -1,4 +1,6 @@
 cached*models
+fits
+reports
 
 # Created by https://www.gitignore.io/api/vim,python,jupyternotebook
 # Edit at https://www.gitignore.io/?templates=vim,python,jupyternotebook
