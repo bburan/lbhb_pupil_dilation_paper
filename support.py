@@ -209,12 +209,14 @@ def get_metric(summary, metric, index=None, cells=None, sig_ref=0):
 def get_color(row, lb_label, ub_label, ref=0):
     if row['gelman-rubin statistic'] > 1.1:
         return 'red'
+    if ref is None:
+        return 'gray'
     if (row[lb_label] > ref) or (row[ub_label] < ref):
         return 'green'
     return 'gray'
 
 
-def forest_plot(ax, cell_metric, pop_metric, measure, ci=90, ref=0):
+def forest_plot(ax, cell_metric, pop_metric, title, ci=90, ref=0):
     cell_metric = cell_metric.sort_values('mean')
     if ci == 90:
         ci_label = ['hpd 5.00%', 'hpd 95.00%']
@@ -233,9 +235,8 @@ def forest_plot(ax, cell_metric, pop_metric, measure, ci=90, ref=0):
         ax.plot(row[ci_label], [i, i], '-', color=color, lw=lw)
         ax.plot(row[['mean']], [i], 'o', color=color)
 
-    title = f'Change in {measure} (lg. re sm. pupil)'
     n_sig = f'{n_sig} sig. out of {len(cell_metric)}'
-    pop_stat = f'Mean change {pop_metric["mean"]:.2f} (90% CI {pop_metric[ci_label[0]]:.2f} to {pop_metric[ci_label[1]]:.2f})'
+    pop_stat = f'Mean {pop_metric["mean"]:.2f} ({ci}% CI {pop_metric[ci_label[0]]:.2f} to {pop_metric[ci_label[1]]:.2f})'
     ax.set_xlabel(f'{title}\n{n_sig}\n{pop_stat}')
     sns.despine(ax=ax, top=True, left=True, right=True, bottom=False)
     ax.yaxis.set_ticks_position('none')
