@@ -91,8 +91,8 @@ model {
     slope_delta_sd ~ normal(0, 0.1);
     slope_delta_cell ~ normal(slope_delta_mean, slope_delta_sd);
     
-    threshold_mean ~ normal(40, 20);
-    threshold_sd ~ normal(0, 20);
+    threshold_mean ~ normal(40, 5);
+    threshold_sd ~ normal(0, 5);
     threshold_cell ~ normal(threshold_mean, threshold_sd);
     
     threshold_delta_mean ~ normal(0, 5);
