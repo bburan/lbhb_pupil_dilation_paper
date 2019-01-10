@@ -25,11 +25,11 @@ if __name__ == '__main__':
     cells, data = load_stan_data('rlf_band', exclude_silent=args.exclude_silent,
                                  significant_only=args.significant_only)
     model = CachedStanModel('rl_with_sr.stan')
-    fit = model.sampling(data, iter=10000, control={'max_treedepth': 15,
-                                                    'adapt_delta': 0.9},
+    n_iter = 2000
+    fit = model.sampling(data, iter=n_iter, control={'max_treedepth': 15},
                          sample_file=f'fits/{hostname}-{fit_name}_samples')
 
-    with open(f'fits/{hostname}-{fit_name}.pkl', 'wb') as fh:
+    with open(f'fits/{hostname}-{fit_name}-{n_iter}.pkl', 'wb') as fh:
         pickle.dump(cells, fh)
         pickle.dump(model, fh)
         pickle.dump(fit, fh)
