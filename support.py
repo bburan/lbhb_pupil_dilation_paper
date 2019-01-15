@@ -33,99 +33,68 @@ def renamer(x):
     return x
 
 
-def load_rates():
+def _load_spreadsheet(filename, swap_pupil=False):
+    x = pd.read_csv(filename)
+    x.columns = [c.replace(' ', '') for c in x.columns]
+    cols = set(c.rsplit('_', 1)[0] for c in x.columns if '_' in c)
+    x = pd.wide_to_long(x, cols, 'cellid', 'idx', sep='_').dropna()
+    x['pupil'] -= 1
+    if swap_pupil:
+        x['pupil'] = 1 - x['pupil']
+    return x
+    
+    
+def _reformat(x, base, sig_cells):
+    metric = 'frequency' if base == 'ftc' else 'level'
+    x = x.reset_index().set_index(['cellid', 'pupil', metric])[[f'{base}_count', f'{base}_time']].sort_index()
+    m = x[f'{base}_time'] > 0
+    x = x.loc[m]
+    x = x.reset_index().join(sig_cells, on=sig_cells.index.names).set_index(x.index.names)
+    x['significant'] = x['significant'].fillna(False)
+    x = x.rename(columns=renamer)
+    return x
+
+    
+def load_rates(swap_pupil=False):
     # NOTE: Pupil should be 0 (small) or 1 (large)
     # Frequency should be octave-spaced
-
-    # Load FTC
-    ftc = pd.read_csv('frequency_tuning_curves_for_bburan.csv')
-    ftc.columns = [s.replace(' ', '') for s in ftc.columns]
-    cols = ['pupil', 'frequency', 'ftc_count', 'ftc_time', 'spont_count', 'spont_time']
-    ftc = pd.wide_to_long(ftc, cols, 'cellid', 'idx', sep='_').dropna()
-    ftc['pupil'] -= 1
-    ftc['frequency'] = np.log2(ftc['frequency'])
-
-    # Load RLF
-    rlf = pd.read_csv('rate_level_functions_for_bburan.csv')
-    rlf.columns = [s.replace(' ', '') for s in rlf.columns]
-    cols = ['pupil', 'level', 'rlf_count', 'rlf_time', 'spont_count', 'spont_time']
-    rlf = pd.wide_to_long(rlf, cols, 'cellid', 'idx', sep='_').dropna()
-    rlf['pupil'] -= 1
-    rlf = rlf.reset_index().set_index(['cellid', 'pupil', 'level'], verify_integrity=True)[['rlf_count', 'rlf_time']].sort_index()
-
-    # Load RLF wide (freq band)
-    rlf_band = pd.read_csv('rate_level_functions_for_bburan_freq_band.csv')
-    rlf_band.columns = [s.replace(' ', '') for s in rlf_band.columns]
-    cols = ['pupil', 'level', 'rlf_count', 'rlf_time', 'spont_count', 'spont_time', 'freq_band']
-    rlf_band = pd.wide_to_long(rlf_band, cols, 'cellid', 'idx', sep='_').dropna()
-    rlf_band['pupil'] -= 1
-    rlf_band = rlf_band.reset_index().set_index(['cellid', 'pupil', 'level'], verify_integrity=True)[['rlf_count', 'rlf_time']].sort_index()
-
-    # Get SR from FTC
-    sr = ftc.groupby(['cellid', 'pupil'])[['spont_count', 'spont_time']].first().sort_index()
-
-    ftc = ftc.reset_index().set_index(['cellid', 'pupil', 'frequency'])[['ftc_count', 'ftc_time']].sort_index()
-    m = ftc['ftc_time'] > 0
-    ftc = ftc.loc[m]
 
     sig_cells = pd.read_csv('psth_sig_cellids.csv')
     sig_cells['significant'] = True
     sig_cells = sig_cells.set_index('cellid')
 
-    ftc = ftc.reset_index().join(sig_cells, on=sig_cells.index.names).set_index(ftc.index.names)
-    ftc['significant'] = ftc['significant'].fillna(False)
+    # Load FTC
+    ftc = _load_spreadsheet('frequency_tuning_curves_for_bburan.csv', swap_pupil)
+    ftc['frequency'] = np.log2(ftc['frequency'])
+    sr = ftc.groupby(['cellid', 'pupil'])[['spont_count', 'spont_time']].first().sort_index()
+    ftc = _reformat(ftc, 'ftc', sig_cells)
+    
+    ftc_band = _load_spreadsheet('frequency_tuning_curves_for_bburan_level_band.csv', swap_pupil)
+    ftc_band['frequency'] = np.log2(ftc_band['frequency'])
+    ftc_band = _reformat(ftc_band, 'ftc', sig_cells)
+    
+    rlf = _load_spreadsheet('rate_level_functions_for_bburan.csv', swap_pupil)
+    rlf = _reformat(rlf, 'rlf', sig_cells)
 
-    rlf = rlf.reset_index().join(sig_cells, on=sig_cells.index.names).set_index(rlf.index.names)
-    rlf['significant'] = rlf['significant'].fillna(False)
-
-    rlf_band = rlf_band.reset_index().join(sig_cells, on=sig_cells.index.names).set_index(rlf_band.index.names)
-    rlf_band['significant'] = rlf_band['significant'].fillna(False)
-
-    sr = sr.reset_index().join(sig_cells, on=sig_cells.index.names).set_index(sr.index.names)
-    sr['significant'] = sr['significant'].fillna(False)
-
-    significant = rlf.reset_index().groupby(['cellid'])['significant'].first()
-
-    ftc = ftc.rename(columns=renamer)
-    rlf = rlf.rename(columns=renamer)
-    rlf_band = rlf_band.rename(columns=renamer)
+    rlf_band = _load_spreadsheet('rate_level_functions_for_bburan_freq_band.csv', swap_pupil)
+    rlf_band = _reformat(rlf_band, 'rlf', sig_cells)
+    
     sr = sr.rename(columns=renamer)
-
     m = sr['time'] != 0
     sr = sr.loc[m]
 
-    m = rlf['time'] != 0
-    rlf = rlf.loc[m]
-
-    m = rlf_band['time'] != 0
-    rlf_band = rlf_band.loc[m]
-
-    m = ftc['time'] != 0
-    ftc = ftc.loc[m]
-
     return {
         'ftc': ftc,
+        'ftc_band': ftc_band,
         'rlf': rlf,
         'rlf_band': rlf_band,
         'sr': sr,
-        'significant': significant,
     }
 
 
-def load_sr():
-    return load_rates()['sr']
-
-
-def load_ftc():
-    return load_rates()['ftc']
-
-
-def load_rlf():
-    return load_rates()['rlf']
-
-
-def load_stan_data(which='rlf', exclude_silent=False, significant_only=False, o=None, n=None):
-    rates = load_rates()
+def load_stan_data(which='rlf', exclude_silent=False, significant_only=False,
+                   o=None, n=None, swap_pupil=False):
+    rates = load_rates(swap_pupil)
     sr = rates['sr']
 
     if which == 'rlf':
@@ -136,6 +105,9 @@ def load_stan_data(which='rlf', exclude_silent=False, significant_only=False, o=
         key = 'level'
     elif which == 'ftc':
         er = rates['ftc']
+        key = 'frequency'
+    elif which == 'ftc_band':
+        er = rates['ftc_band']
         key = 'frequency'
 
     if o is not None and n is not None:
@@ -166,8 +138,9 @@ def load_stan_data(which='rlf', exclude_silent=False, significant_only=False, o=
     s = s.set_index(['cell_index', 'pupil']) \
         .sort_index()[['count', 'time']].unstack()
 
-    _, indices = np.unique(e[['cell_index', 'pupil']].values.tolist(), \
+    z, indices = np.unique(e[['cell_index', 'pupil']].values.tolist(), \
                            axis=0, return_index=True)
+
     indices = np.r_[indices, [len(e), -1]]
     data_cell_index = np.array(indices).reshape((-1, 2)) + 1
 
@@ -190,13 +163,13 @@ def get_metric(summary, metric, index=None, cells=None, sig_ref=0):
     if x.index.nlevels == 2:
         x = x.unstack('metric')
         x['change'] = '='
-        x.loc[x['hpd 5.00%'] > sig_ref, 'change'] = '+'
-        x.loc[x['hpd 95.00%'] < sig_ref, 'change'] = '-'
+        x.loc[x['hpd 5%'] > sig_ref, 'change'] = '+'
+        x.loc[x['hpd 95%'] < sig_ref, 'change'] = '-'
     else:
         x['change'] = '='
-        if x['hpd 5.00%'] > sig_ref:
+        if x['hpd 5%'] > sig_ref:
             x['change'] = '+'
-        elif x['hpd 95.00%'] < sig_ref:
+        elif x['hpd 95%'] < sig_ref:
             x['change'] = '-'
     if cells is not None:
         index = pd.Index(cells, name='cellid')
@@ -207,7 +180,7 @@ def get_metric(summary, metric, index=None, cells=None, sig_ref=0):
 
 
 def get_color(row, lb_label, ub_label, ref=0):
-    if row['gelman-rubin statistic'] > 1.1:
+    if row['r_hat'] > 1.1:
         return 'red'
     if ref is None:
         return 'gray'
@@ -219,7 +192,7 @@ def get_color(row, lb_label, ub_label, ref=0):
 def forest_plot(ax, cell_metric, pop_metric, title, ci=90, ref=0):
     cell_metric = cell_metric.sort_values('mean')
     if ci == 90:
-        ci_label = ['hpd 5.00%', 'hpd 95.00%']
+        ci_label = ['hpd 5%', 'hpd 95%']
     elif ci == 95:
         ci_label = ['hpd 2.50%', 'hpd 97.50%']
 
