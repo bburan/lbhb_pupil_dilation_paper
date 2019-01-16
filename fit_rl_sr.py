@@ -14,11 +14,13 @@ if __name__ == '__main__':
     parser.add_argument('--exclude-silent', action='store_true')
     parser.add_argument('--significant-only', action='store_true')
     parser.add_argument('--band', action='store_true')
+    parser.add_argument('--reference', choices=['sr', 'prestim'], default='sr')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--th-bound', action='store_true')
     group.add_argument('--th-bound-delta', action='store_true')
     group.add_argument('--th-delta', action='store_true')
+    group.add_argument('--th-delta-unconstrained', action='store_true')
 
     parser.add_argument('--swap-pupil', action='store_true')
     args = parser.parse_args()
@@ -34,9 +36,13 @@ if __name__ == '__main__':
     elif args.th_delta:
         fit_names.append('th_delta')
         model = 'rl_with_sr_split_delta.stan'
+    elif args.th_delta_unconstrained:
+        fit_names.append('th_delta_unconstrained')
+        model = 'rl_with_sr_split_delta_unconstrained.stan'
     else:
         model = 'rl_with_sr.stan'
 
+    fit_names.append(args.reference)
     if args.band:
         fit_names.append('band')
         data = 'rlf_band'
@@ -51,7 +57,8 @@ if __name__ == '__main__':
         fit_names.append('significant_only')
     fit_name = '_'.join(fit_names)
 
-    cells, data = load_stan_data(data, exclude_silent=args.exclude_silent,
+    cells, data = load_stan_data(data, reference=args.reference,
+                                 exclude_silent=args.exclude_silent,
                                  significant_only=args.significant_only,
                                  swap_pupil=args.swap_pupil)
     model = CachedStanModel(model)
