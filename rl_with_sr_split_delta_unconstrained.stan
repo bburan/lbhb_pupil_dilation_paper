@@ -86,27 +86,10 @@ model {
     real threshold;
     real sr;
     
-    slope_mean ~ normal(0.1, 0.1);
-    slope_sd ~ normal(0, 0.1);
     slope_cell ~ normal(slope_mean, slope_sd);
-    
-    //slope_delta_mean ~ normal(0, 0.1);
-    //slope_delta_sd ~ normal(0, 0.1);
     slope_delta_cell ~ normal(slope_delta_mean, slope_delta_sd);
-    
-    threshold_mean ~ normal(40, 5);
-    threshold_sd ~ normal(0, 5);
     threshold_cell_mean ~ normal(threshold_mean, threshold_sd);
-    
-    //threshold_delta_mean ~ normal(0, 1);
-    //threshold_delta_sd ~ normal(0, 1);
     threshold_delta_cell ~ normal(threshold_delta_mean, threshold_delta_sd);
-    
-    sr_alpha ~ gamma(0.5, 0.1);
-    sr_beta ~ gamma(0.1, 0.1);
-    sr_ratio_mean ~ normal(1, 1);
-    sr_ratio_sd ~ normal(0, 1);
-    
     sr_cell ~ gamma(sr_alpha, sr_beta);
     sr_ratio_cell ~ normal(sr_ratio_mean, sr_ratio_sd);
     
