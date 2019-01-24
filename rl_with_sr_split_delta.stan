@@ -31,9 +31,9 @@ parameters {
     real<lower=0> slope_sd;
     vector[n_cells] slope_cell_mean;
     
-    real<lower=0> slope_ratio_mean;
-    real<lower=0> slope_ratio_sd;
-    vector<lower=0>[n_cells] slope_ratio_cell;
+    real slope_delta_mean;
+    real<lower=0> slope_delta_sd;
+    vector[n_cells] slope_delta_cell;
     
     real threshold_mean;
     real<lower=0> threshold_sd;
@@ -55,6 +55,9 @@ parameters {
 transformed parameters {
     vector[n_cells] threshold_cell;
     vector[n_cells] threshold_cell_pupil;
+
+    vector[n_cells] slope_cell;
+    vector[n_cells] slope_cell_pupil;
     
     vector[n_cells] sr_cell_pupil;
     vector[n_cells] sr_delta_cell;
@@ -62,18 +65,11 @@ transformed parameters {
     real sr_mean_pupil;
     real sr_delta_mean;
     
-    vector[n_cells] slope_cell;
-    vector[n_cells] slope_cell_pupil;
-    vector[n_cells] slope_delta_cell;
-    real slope_delta_mean;
+    slope_cell = slope_cell_mean - slope_delta_cell / 2;
+    slope_cell_pupil = slope_cell + slope_delta_cell / 2;
     
-    slope_cell = 2 * slope_cell_mean ./ (1 + slope_ratio_cell);
-    slope_cell_pupil = slope_cell .* slope_ratio_cell;
-    slope_delta_cell = slope_cell_pupil - slope_cell;
-    slope_delta_mean = (2 * slope_mean * (slope_ratio_mean - 1)) / (1 + slope_ratio_mean);
-    
-    threshold_cell = threshold_cell_mean + threshold_delta_cell/2;
-    threshold_cell_pupil = threshold_cell_mean - threshold_delta_cell/2;
+    threshold_cell = threshold_cell_mean - threshold_delta_cell/2;
+    threshold_cell_pupil = threshold_cell_mean + threshold_delta_cell/2;
     
     sr_mean = sr_alpha/sr_beta;
     sr_mean_pupil = sr_mean * sr_ratio_mean;
@@ -98,9 +94,9 @@ model {
     slope_sd ~ normal(0, 0.1);
     slope_cell_mean ~ normal(slope_mean, slope_sd);
     
-    slope_ratio_mean ~ normal(1, 0.1);
-    slope_ratio_sd ~ normal(1, 0.1);
-    slope_ratio_cell ~ normal(slope_ratio_mean, slope_ratio_sd);
+    slope_delta_mean ~ normal(0, 0.1);
+    slope_delta_sd ~ normal(0, 0.1);
+    slope_delta_cell ~ normal(slope_delta_mean, slope_delta_sd);
     
     threshold_mean ~ normal(40, 5);
     threshold_sd ~ normal(0, 5);
