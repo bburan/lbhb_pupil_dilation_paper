@@ -13,15 +13,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--exclude-silent', action='store_true')
     parser.add_argument('--significant-only', action='store_true')
-    parser.add_argument('--band', action='store_true')
     args = parser.parse_args()
 
     fit_names = [f'ftc_sr']
-    if args.band:
-        fit_names.append('band')
-        data = 'ftc_band'
-    else:
-        data = 'ftc'
+    data = 'ftc'
     fit_name = '_'.join(fit_names)
 
     if args.exclude_silent:
@@ -34,7 +29,7 @@ if __name__ == '__main__':
                                  significant_only=args.significant_only)
     model = CachedStanModel('ftc_with_sr_additive.stan')
     n_iter = 2000
-    fit = model.sampling(data, iter=n_iter, control={'max_treedepth': 14},
+    fit = model.sampling(data, iter=n_iter, control={'max_treedepth': 16},
                          sample_file=f'fits/{hostname}-{fit_name}_samples')
 
     with open(f'fits/{hostname}-{fit_name}-{n_iter}.pkl', 'wb') as fh:

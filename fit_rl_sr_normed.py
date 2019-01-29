@@ -16,8 +16,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    fit_names = ['rl_sr']
-    model = 'rl_with_sr.stan'
+    fit_names = ['rl_sr_normed']
+    model = 'rl_with_sr_normed.stan'
     data = 'rlf'
 
     if args.exclude_silent:

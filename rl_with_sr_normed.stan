@@ -4,7 +4,7 @@ functions {
         if (x < threshold) {
             result = sr;
         } else {
-           result = fmax(0.01, slope * (x - threshold) + sr);
+           result = fmax(0.01, slope * (x - threshold)/10 + sr);
         }
         return(result);
     }
@@ -83,12 +83,12 @@ model {
     real threshold;
     real sr;
     
-    slope_mean ~ normal(0.1, 0.1);
-    slope_sd ~ normal(0, 0.1);
+    slope_mean ~ normal(1, 1);
+    slope_sd ~ normal(0, 1);
     slope_cell ~ normal(slope_mean, slope_sd);
     
-    slope_delta_mean ~ normal(0, 0.1);
-    slope_delta_sd ~ normal(0, 0.1);
+    slope_delta_mean ~ normal(0, 1);
+    slope_delta_sd ~ normal(0, 1);
     slope_delta_cell ~ normal(slope_delta_mean, slope_delta_sd);
     
     threshold_mean ~ normal(40, 5);

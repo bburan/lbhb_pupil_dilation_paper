@@ -44,8 +44,7 @@ def _load_spreadsheet(filename, swap_pupil=False):
     return x
 
 
-def _reformat(x, base, sig_cells):
-    metric = 'frequency' if base == 'ftc' else 'level'
+def _reformat(x, base, metric, sig_cells):
     cols = [f'{base}_count', f'{base}_time']
     x = x.reset_index().set_index(['cellid', 'pupil', metric])[cols].sort_index()
     m = x[f'{base}_time'] > 0
@@ -65,59 +64,38 @@ def load_rates(swap_pupil=False):
     sig_cells = sig_cells.set_index('cellid')
 
     # Load FTC
-    ftc = _load_spreadsheet('frequency_tuning_curves_for_bburan.csv', swap_pupil)
+    ftc = _load_spreadsheet('frequency_tuning_curves_for_bburan_level_band.csv', swap_pupil)
     ftc['frequency'] = np.log2(ftc['frequency'])
-    sr = ftc.groupby(['cellid', 'pupil'])[['spont_count', 'spont_time']].first().sort_index()
-    ftc = _reformat(ftc, 'ftc', sig_cells)
+    ftc_prestim = _reformat(ftc, 'prestim', 'frequency', sig_cells)
+    ftc = _reformat(ftc, 'ftc', 'frequency', sig_cells)
 
-    ftc_band = _load_spreadsheet('frequency_tuning_curves_for_bburan_level_band.csv', swap_pupil)
-    ftc_band['frequency'] = np.log2(ftc_band['frequency'])
-    ftc_band = _reformat(ftc_band, 'ftc', sig_cells)
-
-    rlf = _load_spreadsheet('rate_level_functions_for_bburan.csv', swap_pupil)
-    rlf = _reformat(rlf, 'rlf', sig_cells)
-
-    rlf_band = _load_spreadsheet('rate_level_functions_for_bburan_freq_band.csv', swap_pupil)
-    rlf_band_prestim = _reformat(rlf_band, 'prestim', sig_cells)
-    rlf_band = _reformat(rlf_band, 'rlf', sig_cells)
-
-    sr = sr.rename(columns=renamer)
-    m = sr['time'] != 0
-    sr = sr.loc[m]
+    rlf = _load_spreadsheet('rate_level_functions_for_bburan_freq_band.csv', swap_pupil)
+    rlf_prestim = _reformat(rlf, 'prestim', 'level', sig_cells)
+    rlf = _reformat(rlf, 'rlf', 'level', sig_cells)
 
     return {
         'ftc': ftc,
-        'ftc_band': ftc_band,
-        'rlf_band_prestim': rlf_band_prestim,
         'rlf': rlf,
-        'rlf_band': rlf_band,
-        'sr': sr,
+        'ftc_prestim': ftc_prestim,
+        'rlf_prestim': rlf_prestim,
     }
 
 
-def load_stan_data(which='rlf', reference='sr', exclude_silent=False,
+def load_stan_data(which='rlf', exclude_silent=False,
                    significant_only=False, o=None, n=None, swap_pupil=False):
     rates = load_rates(swap_pupil)
-
-    if reference == 'sr':
-        sr = rates['sr']
-    elif reference == 'prestim':
-        sr = rates['rlf_band_prestim']
-        sr = sr.groupby(['cellid', 'pupil']).sum()
-        sr['significant'] = sr['significant'].clip(0, 1)
 
     if which == 'rlf':
         er = rates['rlf']
         key = 'level'
-    elif which == 'rlf_band':
-        er = rates['rlf_band']
-        key = 'level'
+        sr = rates['rlf_prestim']
     elif which == 'ftc':
         er = rates['ftc']
         key = 'frequency'
-    elif which == 'ftc_band':
-        er = rates['ftc_band']
-        key = 'frequency'
+        sr = rates['ftc_prestim']
+
+    sr = sr.groupby(['cellid', 'pupil']).sum()
+    sr['significant'] = sr['significant'].clip(0, 1)
 
     if o is not None and n is not None:
         cells = er.reset_index()['cellid'].unique()
@@ -135,7 +113,7 @@ def load_stan_data(which='rlf', reference='sr', exclude_silent=False,
 
     if significant_only:
         er = er.query('significant')
-        sr = sr.query('significant')
+        sr = sr.query('significant != 0')
 
     e = er.reset_index()
     s = sr.reset_index()
@@ -152,6 +130,7 @@ def load_stan_data(which='rlf', reference='sr', exclude_silent=False,
 
     indices = np.r_[indices, [len(e), -1]]
     data_cell_index = np.array(indices).reshape((-1, 2)) + 1
+
 
     return cells, {
         'n': len(e),
