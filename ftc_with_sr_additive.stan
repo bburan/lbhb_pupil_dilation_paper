@@ -121,16 +121,16 @@ model {
     bf_delta_sd ~ normal(0, 0.1);
     bf_delta_cell ~ normal(bf_delta_mean, bf_delta_sd);
     
-    bw_mean ~ normal(1.0, 0.1);
-    bw_sd ~ normal(0, 0.1);
+    bw_mean ~ normal(0.25, 0.05);
+    bw_sd ~ normal(0, 0.05);
     bw_cell ~ normal(bw_mean, bw_sd);
     
     bw_ratio_mean ~ normal(0, 0.1);
     bw_ratio_sd ~ normal(0, 0.1);
     bw_ratio_cell ~ normal(bw_ratio_mean, bw_ratio_sd);
     
-    gain_mean ~ normal(20, 10);
-    gain_sd ~ normal(0, 20);
+    gain_mean ~ normal(10, 1);
+    gain_sd ~ normal(0, 10);
     gain_cell ~ normal(gain_mean, gain_sd);
     
     gain_ratio_mean ~ normal(1, 0.1);

@@ -29,7 +29,8 @@ if __name__ == '__main__':
                                  significant_only=args.significant_only)
     model = CachedStanModel('ftc_with_sr_additive.stan')
     n_iter = 2000
-    fit = model.sampling(data, iter=n_iter, control={'max_treedepth': 15, 'adapt_delta': 0.9},
+    fit = model.sampling(data, iter=n_iter, control={'max_treedepth': 16,
+                                                     'adapt_delta': 0.9},
                          sample_file=f'fits/{hostname}-{fit_name}_samples')
 
     with open(f'fits/{hostname}-{fit_name}-{n_iter}.pkl', 'wb') as fh:
