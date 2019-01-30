@@ -12,11 +12,6 @@ data {
     vector<lower=0>[n] time;
     int<lower=0> count[n];
     
-    vector<lower=0>[n_cells] sr_time;
-    int<lower=0> sr_count[n_cells];
-    vector<lower=0>[n_cells] sr_time_pupil;
-    int<lower=0> sr_count_pupil[n_cells];
-    
     int data_cell_index[n_cells+1, 2];
 }
 
@@ -68,6 +63,11 @@ transformed parameters {
     real sr_mean_pupil;
     real sr_delta_mean;
     
+    real gain_mean_pupil;
+    real gain_delta_mean;
+    real bw_mean_pupil;
+    real bw_delta_mean;
+    
     bf_cell_pupil = bf_cell + bf_delta_cell;
     bw_cell_pupil = bw_cell .* bw_ratio_cell;
     bw_delta_pupil = bw_cell_pupil - bw_cell;
@@ -81,6 +81,11 @@ transformed parameters {
     
     sr_cell_pupil = sr_cell .* sr_ratio_cell;
     sr_delta_cell = sr_cell_pupil - sr_cell;
+    
+    bw_mean_pupil = bw_mean * bw_ratio_mean;
+    bw_delta_mean = bw_mean_pupil - bw_mean;
+    gain_mean_pupil = gain_mean * gain_ratio_mean;
+    gain_delta_mean = gain_mean_pupil - gain_mean;
 }
 
 model {
@@ -152,6 +157,4 @@ model {
     }
     
     count ~ poisson(lambda .* time);
-    sr_count ~ poisson(sr_cell .* sr_time);
-    sr_count_pupil ~ poisson(sr_cell_pupil .* sr_time_pupil);
 }

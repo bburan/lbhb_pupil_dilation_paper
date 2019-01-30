@@ -15,7 +15,7 @@ if __name__ == '__main__':
     parser.add_argument('--significant-only', action='store_true')
     args = parser.parse_args()
 
-    fit_names = [f'ftc_sr']
+    fit_names = [f'ftc']
     data = 'ftc'
     fit_name = '_'.join(fit_names)
 
@@ -27,9 +27,9 @@ if __name__ == '__main__':
 
     cells, data = load_stan_data(data, exclude_silent=args.exclude_silent,
                                  significant_only=args.significant_only)
-    model = CachedStanModel('ftc_with_sr_additive.stan')
+    model = CachedStanModel('ftc_additive.stan')
     n_iter = 2000
-    fit = model.sampling(data, iter=n_iter, control={'max_treedepth': 15, 'adapt_delta': 0.9},
+    fit = model.sampling(data, iter=n_iter, control={'max_treedepth': 10},
                          sample_file=f'fits/{hostname}-{fit_name}_samples')
 
     with open(f'fits/{hostname}-{fit_name}-{n_iter}.pkl', 'wb') as fh:

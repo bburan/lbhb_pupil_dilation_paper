@@ -11,7 +11,7 @@ data {
     vector[n] frequency;
     vector<lower=0>[n] time;
     int<lower=0> count[n];
-    
+
     vector<lower=0>[n_cells] sr_time;
     int<lower=0> sr_count[n_cells];
     vector<lower=0>[n_cells] sr_time_pupil;
@@ -21,25 +21,17 @@ data {
 }
 
 parameters {
-    real bf_mean;
-    real<lower=0> bf_sd;
     vector[n_cells] bf_cell;
+    vector[n_cells] gain_cell;
+    vector<lower=0>[n_cells] bw_cell;
     
     real bf_delta_mean;
     real<lower=0> bf_delta_sd;
     vector[n_cells] bf_delta_cell;
     
-    real gain_mean;
-    real<lower=0> gain_sd;
-    vector[n_cells] gain_cell;
-    
     real<lower=0> gain_ratio_mean;
     real<lower=0> gain_ratio_sd;
     vector<lower=0>[n_cells] gain_ratio_cell;
-    
-    real<lower=0> bw_mean;
-    real<lower=0> bw_sd;
-    vector<lower=0>[n_cells] bw_cell;
     
     real<lower=0> bw_ratio_mean;
     real<lower=0> bw_ratio_sd;
@@ -81,6 +73,7 @@ transformed parameters {
     
     sr_cell_pupil = sr_cell .* sr_ratio_cell;
     sr_delta_cell = sr_cell_pupil - sr_cell;
+    
 }
 
 model {
@@ -103,25 +96,18 @@ model {
     sr_cell ~ gamma(sr_alpha, sr_beta);
     sr_ratio_cell ~ normal(sr_ratio_mean, sr_ratio_sd);
     
-    bf_mean ~ normal(10, 1);
-    bf_sd ~ normal(0, 1);
-    bf_cell ~ normal(bf_mean, bf_sd);
+    bf_cell ~ normal(10, 5);
+    bw_cell ~ normal(0.5, 0.1);
+    gain_cell ~ normal(15, 15);
     
     bf_delta_mean ~ normal(0, 0.1);
     bf_delta_sd ~ normal(0, 0.1);
     bf_delta_cell ~ normal(bf_delta_mean, bf_delta_sd);
     
-    bw_mean ~ normal(1.0, 0.1);
-    bw_sd ~ normal(0, 0.1);
-    bw_cell ~ normal(bw_mean, bw_sd);
     
     bw_ratio_mean ~ normal(0, 0.1);
     bw_ratio_sd ~ normal(0, 0.1);
     bw_ratio_cell ~ normal(bw_ratio_mean, bw_ratio_sd);
-    
-    gain_mean ~ normal(20, 10);
-    gain_sd ~ normal(0, 20);
-    gain_cell ~ normal(gain_mean, gain_sd);
     
     gain_ratio_mean ~ normal(1, 0.1);
     gain_ratio_sd ~ normal(0, 0.1);
